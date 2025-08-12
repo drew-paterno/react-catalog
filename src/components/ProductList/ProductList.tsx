@@ -1,7 +1,7 @@
 import { type ProductType } from '../../assets/products';
 import Product from '../Product/Product';
 import './ProductList.css'
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 const isInList = (list: ProductType[], product: ProductType) => list.some(p => p.id === product.id);
 
@@ -12,10 +12,23 @@ const getWishlistHelperText = (length: number) => {
     return `There ${(length === 1 ? 'is' : 'are')} currently ${length} item${(length === 1 ? '' : 's')} in your wishlist`;
 };
 
+const comparators = {
+    none: { func: () => 0, description: 'None' },
+    priceLowHigh: { func: (a: ProductType, b: ProductType) => a.price - b.price, description: 'Price: Low to High' },
+    priceHighLow: { func: (a: ProductType, b: ProductType) => b.price - a.price, description: 'Price: High to Low' },
+    alphabetical: {
+        func: (a: ProductType, b: ProductType) => a.title.localeCompare(b.title),
+        description: 'Alphabetical'
+    },
+};
+type ComparatorType = keyof typeof comparators;
+
 const ProductList = () => {
     const [products, setProducts] = useState<ProductType[]>([])
     const [status, setStatus] = useState<'LOADING' | 'LOADED' | 'FAILED'>('LOADING')
     const [wishlist, setWishlist] = useState<ProductType[]>([])
+    const [selectedCategory, setSelectedCategory] = useState<string>('All');
+    const [sortingComparator, setSortingComparator] = useState<ComparatorType>('none')
 
     const toggle = (product: ProductType) => {
         setWishlist(prev =>
@@ -36,6 +49,22 @@ const ProductList = () => {
         }
     }, [])
 
+    const categories = useMemo(() => products.reduce<string[]>(
+        (prev, curr) => !prev.some(
+            c => c === curr.category) ? [...prev, curr.category] : prev,
+            []
+        ).sort(),
+        [products]
+    )
+
+    const renderedProducts = useMemo(
+        () => products
+            .filter(p => selectedCategory === 'All' || p.category === selectedCategory)
+            .slice().sort(comparators[sortingComparator].func)
+        ,
+        [products, selectedCategory, sortingComparator]
+    )
+
     useEffect(() => {
         void fetchData()
     }, [fetchData]);
@@ -55,8 +84,29 @@ const ProductList = () => {
             {status === 'LOADED' && (
                 <>
                     <h3>{getWishlistHelperText(wishlist.length)}</h3>
+                    <div className="filter">
+                        <h4>Filter by Category:</h4>
+                        <select
+                            value={selectedCategory}
+                            onChange={(e) => setSelectedCategory(e.target.value)}
+                        >
+                            <option value='All'>All</option>
+                            {categories.map((c, i) => <option value={c} key={i}>{c}</option>)}
+                        </select>
+                    </div>
+                    <div className="sort">
+                        <h4>Sort</h4>
+                        <select
+                            value={sortingComparator}
+                            onChange={(e) => setSortingComparator(e.target.value as ComparatorType)}
+                        >
+                            {(Object.keys(comparators) as ComparatorType[]).map((k, i) => (
+                                <option value={k} key={i}>{comparators[k].description}</option>
+                            ))}
+                        </select>
+                    </div>
                     <div className="product-list">
-                        {products.map(p =>
+                        {renderedProducts.map(p =>
                             <Product
                                 key={p.id}
                                 product={p}
@@ -69,7 +119,6 @@ const ProductList = () => {
             )}
         </div>
     )
-
 }
 
 export default ProductList;

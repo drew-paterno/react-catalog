@@ -14,7 +14,7 @@ const Product = ({ product, onToggleWishlist, inWishlist }: ProductProps) => {
             <h3>{product.title}</h3>
             <img src={product.image} alt={`${product.title} Image`} />
             <div className="price">
-                ${product.price}
+                ${product.price.toFixed(2)}
                 <button onClick={onToggleWishlist}>{inWishlist ? 'Remove from Wishlist' : 'Add to Wishlist'}</button>
             </div>
         </div>
